@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UrbanMove – Book a Ride</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{color-scheme:dark;--bg:#000;--card:#141414;--tx:#fff;--mu:#a3a3a3;--pr:#fff;--pr2:#e5e5e5;--ok:#fff;--er:#fff;--bd:#2b2b2b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 "Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+header{background:var(--card);border-bottom:1px solid var(--bd);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.bar{max-width:1000px;margin:auto;display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.logo{font-weight:800;font-size:24px;letter-spacing:-.5px;color:#fff}nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--mu);padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600}
+nav button.on,nav button:hover{background:#fff;color:#000}
+main{max-width:1000px;margin:auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+h2{margin:0 0 12px;font-size:20px}h3{margin:0 0 8px;font-size:16px}
+label{display:block;font-weight:600;font-size:13px;margin:10px 0 4px}
+input,select{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:9px;background:var(--bg);color:var(--tx);font:inherit}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--pr);outline-offset:1px}
+.btn{background:#fff;color:#000;border:0;padding:10px 16px;border-radius:9px;font:inherit;font-weight:700;cursor:pointer}
+.btn:hover{background:#d9d9d9}.btn.sec{background:var(--bg);color:var(--tx);border:1px solid var(--bd)}.btn.dg{background:transparent;color:#fff;border:2px solid #fff}.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:640px){.row{grid-template-columns:1fr}}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.tabs{display:flex;gap:6px;margin-bottom:12px}.tabs button{flex:1}
+.cab{display:flex;align-items:center;gap:12px;padding:12px;border:2px solid var(--bd);border-radius:11px;margin-bottom:8px;cursor:pointer}
+.cab.sel{border-color:var(--pr);background:color-mix(in srgb,var(--pr) 8%,transparent)}
+.cab .i{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#000;background:#fff}.cab .g{flex:1}.cab small{color:var(--mu)}
+.tag{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:700;background:var(--bg);border:1px solid var(--bd)}
+.s-Confirmed,.s-Arrived,.s-InProgress{color:var(--pr)}.s-Completed,.s-Paid{color:var(--ok)}.s-Cancelled,.s-Failed,.s-Refunded{color:var(--er)}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:7px 6px;border-bottom:1px solid var(--bd);text-align:left}
+.map{width:100%;height:280px;background:var(--bg);border:1px solid var(--bd);border-radius:12px}
+.fare{font-size:30px;font-weight:800;color:var(--pr)}.mu{color:var(--mu)}.err{color:var(--er);font-weight:600;font-size:13px;min-height:18px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#fff;color:#000;box-shadow:0 6px 20px rgba(0,0,0,.6);padding:10px 18px;border-radius:10px;opacity:0;transition:.3s;pointer-events:none;z-index:20;max-width:90%}
+#toast.show{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:15}
+.modal .card{width:100%;max-width:420px;margin:0}
+.hero{text-align:center;padding:20px 0}.hero h1{font-size:34px;margin:0 0 6px;letter-spacing:-1px}
+</style></head><body>
+<header><div class="bar"><span class="logo">UrbanMove</span><nav id="nav"></nav><span id="who" class="mu"></span><button class="btn sec" id="lo" hidden>Logout</button></div></header>
+<main id="app"></main><div id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+
+/* ---------- Storage (database layer with backup/recovery: NFR9) ---------- */
+
+const mem={};
+const DB={get(k,d){try{const v=localStorage.getItem('cg_'+k);return v?JSON.parse(v):(mem[k]??d)}catch(e){return mem[k]??d}},
+set(k,v){mem[k]=v;try{localStorage.setItem('cg_'+k,JSON.stringify(v))}catch(e){}}};
+const SS={get(){try{return JSON.parse(sessionStorage.getItem('cg_s'))}catch(e){return mem.s||null}},set(v){mem.s=v;try{v?sessionStorage.setItem('cg_s',JSON.stringify(v)):sessionStorage.removeItem('cg_s')}catch(e){}}};
+const backup=()=>DB.set('backup',{at:Date.now(),bookings:DB.get('bookings',[]),cabs:DB.get('cabs',[]),users:DB.get('users',[])});
+const save=(k,v)=>{DB.set(k,v);backup()};
+const PLACES=[["MG Road",12.9756,77.6068],["Indiranagar",12.9784,77.6408],["Koramangala",12.9352,77.6245],["Whitefield",12.9698,77.7500],["Electronic City",12.8452,77.6602],["Jayanagar",12.9250,77.5938],["Kempegowda Airport",13.1986,77.7066],["Majestic Bus Stand",12.9767,77.5713],["Hebbal",13.0358,77.5970],["HSR Layout",12.9116,77.6474]];
+const RATES={Mini:{base:40,km:12,cap:4},Sedan:{base:60,km:15,cap:4},SUV:{base:90,km:20,cap:6}};
+if(!DB.get('cabs')) DB.set('cabs',[["Ravi K","KA01AB1234","Mini",12.97,77.60],["Suresh M","KA03CD5678","Sedan",12.98,77.63],["Anita R","KA05EF9012","SUV",12.94,77.62],["Imran S","KA02GH3456","Mini",12.93,77.59],["Deepak N","KA04JK7890","Sedan",12.99,77.57],["Meena V","KA53LM2468","SUV",12.96,77.66],["John D","KA09NP1357","Mini",13.02,77.60],["Priya L","KA01QR8642","Sedan",12.91,77.64]].map((c,i)=>({id:'S'+i,name:c[0],plate:c[1],cat:c[2],lat:c[3],lng:c[4],avail:true})));
+
+/* ---------- Utils ---------- */
+
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const toast=m=>{const t=$('#toast');t.textContent=m;t.className='show';clearTimeout(toast.t);toast.t=setTimeout(()=>t.className='',3000)};
+const hav=(a,b)=>{const R=6371,r=x=>x*Math.PI/180,dl=r(b.lat-a.lat),dg=r(b.lng-a.lng),h=Math.sin(dl/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dg/2)**2;return 2*R*Math.asin(Math.sqrt(h))};
+const road=(a,b)=>hav(a,b)*1.3, eta=km=>Math.max(1,Math.round(km/30*60));
+const fare=(km,cat)=>{const r=RATES[cat];return Math.max(r.base+10,Math.round((r.base+km*r.km)*1.05))}; /* base + distance*rate, +5% GST */
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+const uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ---------- Crypto (NFR3): PBKDF2 password hashing + AES-GCM for payment data ---------- */
+
+async function hashPw(pw,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},k,256))}
+async function devKey(){let j=DB.get('dk');if(j)return crypto.subtle.importKey('jwk',j,'AES-GCM',false,['encrypt','decrypt']);const k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},true,['encrypt','decrypt']);DB.set('dk',await crypto.subtle.exportKey('jwk',k));return k}
+async function enc(o){const iv=crypto.getRandomValues(new Uint8Array(12));const c=await crypto.subtle.encrypt({name:'AES-GCM',iv},await devKey(),new TextEncoder().encode(JSON.stringify(o)));return hex(iv)+':'+hex(c)}
+
+/* ---------- Session (FR2, FR10) ---------- */
+
+let me=null,view='book',draft={},watch=null;
+function loadSession(){const s=SS.get();if(!s||s.exp<Date.now()){SS.set(null);return null}const ss=DB.get('sessions',{});if(ss[s.t]!==s.uid){SS.set(null);return null}return DB.get('users',[]).find(u=>u.id===s.uid)||null}
+function startSession(u){const t=hex(crypto.getRandomValues(new Uint8Array(16))),ss=DB.get('sessions',{});ss[t]=u.id;DB.set('sessions',ss);SS.set({t,uid:u.id,exp:Date.now()+30*60000});me=u}
+function logout(){const s=SS.get(),ss=DB.get('sessions',{});if(s)delete ss[s.t];DB.set('sessions',ss);SS.set(null);if(watch!=null)navigator.geolocation.clearWatch(watch),watch=null;me=null;draft={};go('auth');toast('Logged out')}
+$('#lo').onclick=logout;
+function go(v){if(!me&&v!=='auth'){v='auth'}view=v;render()} /* guard: no feature without a valid session */
+
+/* ---------- Rendering ---------- */
+
+function render(){me=me&&loadSession();const nav=$('#nav');$('#lo').hidden=!me;$('#who').textContent=me?`${me.name} (${me.role})`:'';
+ const items=!me?[]:me.role==='passenger'?[['book','Book a Ride'],['trips','My Trips'],['profile','Profile']]:[['drv','Driver Dashboard'],['profile','Profile']];
+ if(me&&!items.some(i=>i[0]===view))view=items[0][0];
+ nav.innerHTML=items.map(i=>`<button class="${i[0]===view?'on':''}" data-v="${i[0]}">${i[1]}</button>`).join('');
+ nav.querySelectorAll('button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+ ({auth:vAuth,book:vBook,trips:vTrips,profile:vProfile,drv:vDrv}[me?view:'auth'])()}
+
+/* ---------- Auth (FR1, FR2) ---------- */
+
+let tab='login';
+function vAuth(){$('#app').innerHTML=`<div class="hero"><h1>Your ride, on demand.</h1><p class="mu">Safe, affordable cabs across Bengaluru.</p></div>
+<div class="card" style="max-width:480px;margin:auto"><div class="tabs"><button class="btn ${tab=='login'?'':'sec'}" id="t1">Login</button><button class="btn ${tab=='reg'?'':'sec'}" id="t2">Register</button></div><form id="f" novalidate>
+${tab=='reg'?`<label for="role">I am a</label><select id="role"><option value="passenger">Passenger</option><option value="driver">Driver</option></select><label for="nm">Full name</label><input id="nm" autocomplete="name"><label for="ph">Phone (10 digits)</label><input id="ph" inputmode="numeric" maxlength="10">`:''}
+<label for="em">Email</label><input id="em" type="email" autocomplete="email"><label for="pw">Password ${tab=='reg'?'(min 8, letters & digits)':''}</label><input id="pw" type="password" autocomplete="${tab=='reg'?'new-password':'current-password'}">
+${tab=='reg'?`<div id="dv" hidden><div class="row"><div><label for="vm">Vehicle model</label><input id="vm"></div><div><label for="vp">Plate number</label><input id="vp" placeholder="KA01AB1234"></div></div><label for="vc">Cab category</label><select id="vc">${Object.keys(RATES).map(c=>`<option>${c}</option>`).join('')}</select></div>`:''}
+<p class="err" id="er" role="alert"></p><button class="btn" style="width:100%">${tab=='login'?'Login':'Create account'}</button></form></div>`;
+ $('#t1').onclick=()=>{tab='login';vAuth()};$('#t2').onclick=()=>{tab='reg';vAuth()};
+ if(tab=='reg')$('#role').onchange=e=>$('#dv').hidden=e.target.value!=='driver';
+ $('#f').onsubmit=async e=>{e.preventDefault();const er=m=>($('#er').textContent=m,0),v=id=>($('#'+id)?.value||'').trim();
+  const email=v('em').toLowerCase(),pw=$('#pw').value,users=DB.get('users',[]);
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))return er('Enter a valid email address.');
+  try{
+  if(tab=='login'){const u=users.find(x=>x.email===email);if(!u||await hashPw(pw,unhex(u.salt))!==u.hash)return er('Invalid email or password.');startSession(u);go(u.role=='driver'?'drv':'book');toast('Welcome back, '+u.name);return}
+  if(v('nm').length<2)return er('Enter your full name.');if(!/^[6-9]\d{9}$/.test(v('ph')))return er('Enter a valid 10-digit Indian mobile number.');
+  if(!/^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(pw))return er('Password needs 8+ characters with letters and digits.');
+  if(users.some(x=>x.email===email))return er('An account with this email already exists.');
+  if(users.some(x=>x.phone===v('ph')))return er('This phone number is already registered.');
+  const role=v('role'),u={id:uid('U'),role,name:v('nm'),email,phone:v('ph'),created:Date.now()};
+  if(role=='driver'){if(!v('vm')||!/^[A-Z]{2}\d{2}[A-Z]{1,3}\d{4}$/i.test(v('vp')))return er('Enter vehicle model and a valid plate (e.g. KA01AB1234).');u.vehicle={model:v('vm'),plate:v('vp').toUpperCase(),cat:v('vc')};u.online=false;u.lat=12.9716;u.lng=77.5946}
+  const salt=crypto.getRandomValues(new Uint8Array(16));u.salt=hex(salt);u.hash=await hashPw(pw,salt);users.push(u);save('users',users);startSession(u);go(role=='driver'?'drv':'book');toast('Account created')
+  }catch(x){er('Secure context required for encryption. Open the published link over HTTPS.')}}}
+
+  /* ---------- Cab pool (FR5) ---------- */
+
+function pool(){const c=DB.get('cabs',[]).map(x=>({...x,drv:null}));
+ DB.get('users',[]).filter(u=>u.role=='driver'&&u.online&&!u.busy).forEach(u=>c.push({id:u.id,name:u.name,plate:u.vehicle.plate,cat:u.vehicle.cat,lat:u.lat,lng:u.lng,avail:true,drv:u.id}));
+ return c.filter(x=>x.avail)}
+const resolve=s=>{s=s.trim().toLowerCase();const p=PLACES.find(p=>p[0].toLowerCase()===s);if(p)return{n:p[0],lat:p[1],lng:p[2]};
+ const m=s.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);if(m&&Math.abs(m[1])<=90&&Math.abs(m[2])<=180)return{n:`${(+m[1]).toFixed(4)}, ${(+m[2]).toFixed(4)}`,lat:+m[1],lng:+m[2]};return null};
+
+ /* ---------- Map ---------- */
+ 
+function map(pts){const W=600,H=280,la=pts.map(p=>p.lat),lo=pts.map(p=>p.lng);let a=Math.min(...la),b=Math.max(...la),c=Math.min(...lo),d=Math.max(...lo);const pa=Math.max(.01,(b-a)*.2),pc=Math.max(.01,(d-c)*.2);a-=pa;b+=pa;c-=pc;d+=pc;
+ const X=l=>(l-c)/(d-c)*W,Y=l=>H-(l-a)/(b-a)*H;let g='';for(let i=1;i<6;i++)g+=`<path d="M${i*W/6} 0V${H}M0 ${i*H/6}H${W}" stroke="currentColor" opacity=".08"/>`;
+ const line=pts.find(p=>p.k=='route');
+ return `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="Map of pick-up, drop and cabs">${g}${pts.filter(p=>p.k=='pick'||p.k=='drop').length==2?(q=>`<line x1="${X(q[0].lng)}" y1="${Y(q[0].lat)}" x2="${X(q[1].lng)}" y2="${Y(q[1].lat)}" stroke="#fff" stroke-width="3" stroke-dasharray="6 5"/>`)(pts.filter(p=>p.k=='pick'||p.k=='drop')):''}
+ ${pts.map(p=>`<g transform="translate(${X(p.lng)},${Y(p.lat)})"><circle r="${p.k=='live'?10:p.k=='cab'?7:8}" fill="${{pick:'#fff',drop:'#000',cab:'#6b6b6b',live:'#fff'}[p.k]}" stroke="${p.k=='drop'?'#fff':'#000'}" stroke-width="${p.k=='drop'?3.5:2.5}"/>${p.t?`<text font-size="11" y="-14" text-anchor="middle" fill="currentColor">${esc(p.t)}</text>`:''}</g>`).join('')}</svg>`}
+
+ /* ---------- Booking (FR3, FR5, FR6, FR7) ---------- */
+
+function vBook(){const d=draft;$('#app').innerHTML=`<div class="card"><h2>Where to?</h2><form id="f" novalidate><div class="row"><div><label for="pk">Pick-up (place or "lat,lng")</label><input id="pk" list="pl" value="${esc(d.pkS||'')}" placeholder="e.g. MG Road"></div><div><label for="dp">Drop</label><input id="dp" list="pl" value="${esc(d.dpS||'')}" placeholder="e.g. Whitefield"></div></div>
+<datalist id="pl">${PLACES.map(p=>`<option value="${p[0]}">`).join('')}</datalist><p class="err" id="er" role="alert"></p><div class="acts"><button type="button" class="btn sec" id="gps">Use my current location</button><button class="btn">Find cabs</button></div></form></div><div id="res"></div>`;
+ $('#gps').onclick=()=>{if(!navigator.geolocation)return $('#er').textContent='Location service unavailable on this device.';$('#gps').textContent='Locating…';
+  navigator.geolocation.getCurrentPosition(p=>{$('#pk').value=p.coords.latitude.toFixed(5)+', '+p.coords.longitude.toFixed(5);$('#gps').textContent='Use my current location';toast('Location captured')},e=>{$('#gps').textContent='Use my current location';$('#er').textContent='Could not get location ('+e.message+'). Type a place or coordinates instead.'},{timeout:8000})};
+ $('#f').onsubmit=e=>{e.preventDefault();const er=m=>$('#er').textContent=m,a=resolve($('#pk').value),b=resolve($('#dp').value);
+  if(!a)return er('Pick-up not recognised. Choose a suggested place or enter "lat,lng".');if(!b)return er('Drop not recognised. Choose a suggested place or enter "lat,lng".');
+  if(hav(a,b)<.2)return er('Pick-up and drop are too close together.');if(hav(a,b)>600)return er('Trip distance is too long.');
+  draft={pkS:$('#pk').value,dpS:$('#dp').value,pick:a,drop:b,km:+road(a,b).toFixed(1),sel:null};er('');cabs()};
+ if(d.pick)cabs()}
+function cabs(){const d=draft,list=pool().map(c=>({...c,d:road(c,d.pick)})).sort((x,y)=>x.d-y.d);
+ $('#res').innerHTML=`<div class="card"><h2>Available cabs <span class="tag">${d.km} km trip</span></h2>${map([{...d.pick,k:'pick',t:'Pick-up'},{...d.drop,k:'drop',t:'Drop'},...list.slice(0,8).map(c=>({...c,k:'cab'}))])}
+ <div style="margin-top:12px">${list.length?list.map(c=>`<div class="cab ${d.sel==c.id?'sel':''}" tabindex="0" role="button" data-id="${c.id}" data-cat="${c.cat}"><span class="i">${c.cat[0]}</span><div class="g"><b>${esc(c.cat)}</b> · ${esc(c.name)}<br><small>${esc(c.plate)} · ${c.d.toFixed(1)} km away · ${eta(c.d)} min</small></div><b>₹${fare(d.km,c.cat)}</b></div>`).join(''):'<p class="mu">No cabs are available right now. Please try again shortly.</p>'}</div>
+ ${d.sel?(c=>`<div class="card" style="background:var(--bg);margin:12px 0 0"><h3>Fare estimate · ${c.cat}</h3><div class="fare">₹${fare(d.km,c.cat)}</div><p class="mu">Base ₹${RATES[c.cat].base} + ₹${RATES[c.cat].km}/km × ${d.km} km + 5% GST (min fare applies)</p><div class="acts"><button class="btn" id="pay">Confirm &amp; Pay</button></div></div>`)(list.find(c=>c.id==d.sel)||{cat:'Mini'}):''}</div></div>`;
+ document.querySelectorAll('.cab').forEach(el=>{const f=()=>{d.sel=el.dataset.id;cabs()};el.onclick=f;el.onkeydown=e=>e.key=='Enter'&&f()});
+ if(d.sel&&$('#pay'))$('#pay').onclick=()=>payModal(list.find(c=>c.id==d.sel))}
+
+ /* ---------- Payment gateway (FR8) – simulated gateway ---------- */
+
+const luhn=n=>{let s=0,f=0;for(let i=n.length-1;i>=0;i--){let x=+n[i];if(f&&(x*=2)>9)x-=9;s+=x;f^=1}return s%10==0};
+function payModal(cab){const amt=fare(draft.km,cab.cat),m=document.createElement('div');m.className='modal';
+ m.innerHTML=`<div class="card" role="dialog" aria-modal="true"><h2>Secure payment · ₹${amt}</h2><form id="pf" novalidate><label for="cn">Card number</label><input id="cn" inputmode="numeric" placeholder="4111 1111 1111 1111" autocomplete="cc-number"><label for="cm">Name on card</label><input id="cm"><div class="row"><div><label for="ce">Expiry (MM/YY)</label><input id="ce" placeholder="12/29" maxlength="5"></div><div><label for="cv">CVV</label><input id="cv" type="password" maxlength="3" inputmode="numeric"></div></div><p class="mu" style="font-size:12px">Test cards: 4111 1111 1111 1111 succeeds · ending 0000 is declined. Card data is AES-GCM encrypted; only the last 4 digits are kept.</p><p class="err" id="pe" role="alert"></p><div class="acts"><button class="btn" id="pb">Pay ₹${amt}</button><button type="button" class="btn sec" id="px">Cancel</button></div></form></div>`;
+ document.body.appendChild(m);$('#px').onclick=()=>m.remove();
+ $('#pf').onsubmit=async e=>{e.preventDefault();const pe=t=>$('#pe').textContent=t,n=$('#cn').value.replace(/\s/g,''),ex=$('#ce').value.match(/^(\d\d)\/(\d\d)$/),now=new Date();
+  if(!/^\d{13,19}$/.test(n)||!luhn(n))return pe('Invalid card number.');if($('#cm').value.trim().length<2)return pe('Enter the name on the card.');
+  if(!ex||ex[1]<1||ex[1]>12||new Date(2000+ +ex[2],ex[1],0,23,59)<now)return pe('Card expiry is invalid or in the past.');if(!/^\d{3}$/.test($('#cv').value))return pe('CVV must be 3 digits.');
+  const fresh=pool().find(c=>c.id==cab.id);if(!fresh){m.remove();toast('Sorry, that cab was just taken. Choose another.');return cabs()}
+  $('#pb').disabled=true;$('#pb').textContent='Processing…';await new Promise(r=>setTimeout(r,1200));
+  const ok=!n.endsWith('0000'),pay={status:ok?'Paid':'Failed',ref:'TXN'+Date.now().toString(36).toUpperCase(),last4:n.slice(-4),amt,enc:await enc({last4:n.slice(-4),name:$('#cm').value.trim()})};
+  if(!ok){pay.at=Date.now();const bk=DB.get('payments',[]);bk.push({...pay,pid:me.id});DB.set('payments',bk);m.remove();toast('Payment declined. No booking was created.');return}
+  book(cab,pay);m.remove()}}
+function book(cab,pay){const d=draft,b={id:'BK'+Date.now().toString(36).toUpperCase(),pid:me.id,pname:me.name,did:cab.drv,cab:{id:cab.id,name:cab.name,plate:cab.plate,cat:cab.cat},pick:d.pick,drop:d.drop,km:d.km,fare:pay.amt,status:'Confirmed',pay,loc:{lat:cab.lat,lng:cab.lng},tick:0,created:Date.now()};
+ if(cab.drv){const u=DB.get('users',[]);const x=u.find(y=>y.id==cab.drv);x.busy=true;save('users',u)}else{const c=DB.get('cabs',[]);c.find(y=>y.id==cab.id).avail=false;save('cabs',c)}
+ const bs=DB.get('bookings',[]);bs.unshift(b);save('bookings',bs);draft={};toast('Booking '+b.id+' confirmed!');go('trips')}
+function release(b){if(b.did){const u=DB.get('users',[]),x=u.find(y=>y.id==b.did);if(x){x.busy=false;x.lat=b.loc.lat;x.lng=b.loc.lng;save('users',u)}}else{const c=DB.get('cabs',[]),x=c.find(y=>y.id==b.cab.id);if(x){x.avail=true;x.lat=b.loc.lat;x.lng=b.loc.lng;save('cabs',c)}}}
+function cancel(id){const bs=DB.get('bookings',[]),b=bs.find(x=>x.id==id);if(!b||!['Confirmed','Arrived'].includes(b.status))return toast('This ride can no longer be cancelled.');
+ b.status='Cancelled';b.pay.status='Refunded';release(b);save('bookings',bs);toast('Booking cancelled. Refund initiated.');render()}
+
+ /* ---------- Trips & live tracking (FR6, FR9) ---------- */
+
+const live=b=>['Confirmed','Arrived','In Progress'].includes(b.status);
+function trackHtml(b){const tgt=b.status=='In Progress'?b.drop:b.pick,k=road(b.loc,tgt),msg={Confirmed:`Driver arriving in <b>${eta(k)} min</b> · ${k.toFixed(1)} km away`,Arrived:'Your driver has arrived at the pick-up point',['In Progress']:`On trip · ETA to drop <b>${eta(k)} min</b> (${k.toFixed(1)} km)`}[b.status];
+ return `<p>${msg}</p>${map([{...b.pick,k:'pick',t:'Pick-up'},{...b.drop,k:'drop',t:'Drop'},{...b.loc,k:'live',t:b.cab.name}])}`}
+function vTrips(){const bs=DB.get('bookings',[]).filter(b=>b.pid==me.id);
+ $('#app').innerHTML=`<div class="card"><h2>My trips</h2>${bs.length?'':'<p class="mu">No trips yet. Book your first ride!</p>'}</div>`+bs.map(b=>`<div class="card" data-b="${b.id}"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${b.id}</b><span class="tag s-${b.status.replace(' ','')}">${b.status}</span></div>
+ <p>${esc(b.pick.n)} → ${esc(b.drop.n)}<br><span class="mu">${b.cab.cat} · ${esc(b.cab.name)} (${esc(b.cab.plate)}) · ${b.km} km · ${new Date(b.created).toLocaleString()}</span></p>
+ <p>Fare <b>₹${b.fare}</b> · Payment <span class="tag s-${b.pay.status}">${b.pay.status}</span> <span class="mu">${b.pay.ref} · card ••${b.pay.last4}</span></p>
+ ${live(b)?`<div class="trk">${trackHtml(b)}</div>`:''}${['Confirmed','Arrived'].includes(b.status)?`<div class="acts"><button class="btn dg" data-c="${b.id}">Cancel booking</button></div>`:''}</div>`).join('')+
+ `<div class="acts"><button class="btn sec" id="rs">Restore data from last backup</button></div>`;
+ document.querySelectorAll('[data-c]').forEach(x=>x.onclick=()=>confirm('Cancel this booking?')&&cancel(x.dataset.c));
+ $('#rs').onclick=()=>{const k=DB.get('backup');if(!k)return toast('No backup available.');if(!confirm('Restore bookings, cabs and users from backup taken '+new Date(k.at).toLocaleString()+'?'))return;DB.set('bookings',k.bookings);DB.set('cabs',k.cabs);DB.set('users',k.users);toast('Data restored from backup');render()}}
+
+ /* simulated driver-device location stream; real drivers can share GPS instead */
+ 
+setInterval(()=>{if(!me)return;let bs=DB.get('bookings',[]),ch=false;
+ bs.forEach(b=>{if(!live(b))return;const u=b.did&&DB.get('users',[]).find(x=>x.id==b.did);if(u&&u.sharing)return;
+  const tgt=b.status=='In Progress'?b.drop:b.pick;if(b.status=='Arrived'){if(++b.tick>3){b.status='In Progress';ch=true}return}
+  const k=hav(b.loc,tgt),st=.25;if(k<=st){b.loc={lat:tgt.lat,lng:tgt.lng};if(b.status=='Confirmed'){b.status='Arrived';b.tick=0}else{b.status='Completed';release(b)}}else{const f=st/k;b.loc={lat:b.loc.lat+(tgt.lat-b.loc.lat)*f,lng:b.loc.lng+(tgt.lng-b.loc.lng)*f}}ch=true});
+ if(ch){DB.set('bookings',bs);if(view=='trips'&&me.role=='passenger'){const stat=bs.filter(b=>b.pid==me.id).map(b=>b.status+live(b)).join();if(stat!==tick.s){tick.s=stat;vTrips()}else document.querySelectorAll('[data-b]').forEach(el=>{const b=bs.find(x=>x.id==el.dataset.b),t=el.querySelector('.trk');if(b&&t&&live(b))t.innerHTML=trackHtml(b)})}else if(view=='drv')drvLive()}},1000);
+const tick={s:''};
+
+/* ---------- Profile (FR4) ---------- */
+
+function vProfile(){const v=me.vehicle;$('#app').innerHTML=`<div class="card" style="max-width:560px"><h2>My profile</h2><form id="f" novalidate><label for="nm">Full name</label><input id="nm" value="${esc(me.name)}"><label for="em">Email (cannot be changed)</label><input id="em" value="${esc(me.email)}" disabled><label for="ph">Phone</label><input id="ph" value="${esc(me.phone)}" maxlength="10">
+${v?`<div class="row"><div><label for="vm">Vehicle model</label><input id="vm" value="${esc(v.model)}"></div><div><label for="vp">Plate</label><input id="vp" value="${esc(v.plate)}"></div></div><label for="vc">Category</label><select id="vc">${Object.keys(RATES).map(c=>`<option ${c==v.cat?'selected':''}>${c}</option>`).join('')}</select>`:''}
+<p class="err" id="er" role="alert"></p><button class="btn">Save changes</button></form></div>`;
+ $('#f').onsubmit=e=>{e.preventDefault();const g=id=>$('#'+id).value.trim(),er=m=>$('#er').textContent=m;if(g('nm').length<2)return er('Enter your name.');if(!/^[6-9]\d{9}$/.test(g('ph')))return er('Enter a valid 10-digit mobile number.');
+  const us=DB.get('users',[]);if(us.some(x=>x.id!=me.id&&x.phone==g('ph')))return er('Phone already used by another account.');const u=us.find(x=>x.id==me.id);u.name=g('nm');u.phone=g('ph');
+  if(v){if(!g('vm')||!/^[A-Z]{2}\d{2}[A-Z]{1,3}\d{4}$/i.test(g('vp')))return er('Enter vehicle model and valid plate.');u.vehicle={model:g('vm'),plate:g('vp').toUpperCase(),cat:g('vc')}}
+  save('users',us);me=u;er('');render();toast('Profile updated')}}
+
+/* ---------- Driver dashboard ---------- */
+
+function vDrv(){const u=DB.get('users',[]).find(x=>x.id==me.id);$('#app').innerHTML=`<div class="card"><h2>Driver dashboard</h2><p>${esc(u.vehicle.model)} · ${esc(u.vehicle.plate)} · <span class="tag">${u.vehicle.cat}</span></p><p>Status: <b>${u.busy?'On a ride':u.online?'Online – visible to passengers':'Offline'}</b></p>
+<div class="acts"><button class="btn ${u.online?'sec':''}" id="on" ${u.busy?'disabled':''}>${u.online?'Go offline':'Go online'}</button><button class="btn sec" id="gp">${u.sharing?'Stop sharing GPS':'Share live GPS from this device'}</button></div><p class="mu" style="font-size:13px">Your device's location is sent continuously to passengers while GPS sharing is on.</p></div><div id="ride"></div>`;
+ const upd=f=>{const us=DB.get('users',[]),x=us.find(y=>y.id==me.id);f(x);save('users',us);render()};
+ $('#on').onclick=()=>upd(x=>{x.online=!x.online});
+ $('#gp').onclick=()=>{if(u.sharing){navigator.geolocation.clearWatch(watch);watch=null;return upd(x=>{x.sharing=false})}
+  if(!navigator.geolocation)return toast('Location service unavailable.');
+  watch=navigator.geolocation.watchPosition(p=>{const us=DB.get('users',[]),x=us.find(y=>y.id==me.id);x.lat=p.coords.latitude;x.lng=p.coords.longitude;DB.set('users',us);const bs=DB.get('bookings',[]),b=bs.find(y=>y.did==me.id&&live(y));if(b){b.loc={lat:x.lat,lng:x.lng};DB.set('bookings',bs)}},e=>toast('GPS error: '+e.message),{enableHighAccuracy:true});upd(x=>{x.sharing=true})};
+ drvLive()}
+function drvLive(){const el=$('#ride');if(!el)return;const b=DB.get('bookings',[]).find(x=>x.did==me.id&&live(x));
+ el.innerHTML=b?`<div class="card"><h3>Current ride ${b.id} <span class="tag s-${b.status.replace(' ','')}">${b.status}</span></h3><p>${esc(b.pname)}: ${esc(b.pick.n)} → ${esc(b.drop.n)} · ₹${b.fare} (${b.pay.status})</p>${trackHtml(b)}<div class="acts">${b.status=='Confirmed'?'<button class="btn" data-s="Arrived">Mark arrived</button>':b.status=='Arrived'?'<button class="btn" data-s="In Progress">Start trip</button>':'<button class="btn" data-s="Completed">Complete trip</button>'}</div></div>`:'<div class="card mu">No active ride. Go online to receive bookings.</div>';
+ el.querySelectorAll('[data-s]').forEach(x=>x.onclick=()=>{const bs=DB.get('bookings',[]),y=bs.find(z=>z.id==b.id);y.status=x.dataset.s;if(y.status=='Arrived')y.tick=0;if(y.status=='Completed')release(y);save('bookings',bs);render()})}
+
+/* ---------- Boot ---------- */
+
+me=loadSession();view=me?(me.role=='driver'?'drv':'book'):'auth';render();
+</script></body></html>
